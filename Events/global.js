@@ -18,7 +18,8 @@ import { giveKnightCaptureIds } from "../Helper/commonhelper.js";
 import { giveKingCaptureIds } from "../Helper/commonhelper.js";
 import { giveBishopCaptureIds } from "../Helper/commonhelper.js";
 import { giveRookCapturesIds } from "../Helper/commonhelper.js";
-import logMoves from "../Helper/logging.js";
+// import logMoves from "../Helper/logging.js";
+import pawnPromotion from "../Helper/modalcreater.js";
 
 
 // highlighted or  not => state
@@ -106,13 +107,71 @@ function captureinTurn(square){
     return;
   }
 }
+
+function checkForPawnPromotion(piece, id) {
+  if (inTurn === "white") {
+    if (
+      piece?.piece_name?.toLowerCase()?.includes("pawn") &&
+      id?.includes("8")
+    ) {
+      return true;
+    } else {
+      return false;
+    }
+  } else {
+    if (
+      piece?.piece_name?.toLowerCase()?.includes("pawn") &&
+      id?.includes("1")
+    ) {
+      return true;
+    } else {
+      return false;
+    }
+  }
+}
+
+function callbackPawnPromotion(piece, id) {
+  const realPiece = piece(id);
+  const currentSquare = keySquareMapper[id];
+  piece.current_position = id;
+  currentSquare.piece = realPiece;
+  const image = document.createElement("img");
+  image.src = realPiece.img;
+  image.classList.add("piece");
+
+  const currentElement = document.getElementById(id);
+  currentElement.innerHTML = "";
+  currentElement.append(image);
+}
 // move element to square with id
-function moveElement(piece, id) {
-  changeTurn();
-  // checkForCheck();
-  // logMoves({from : piece.current_position,to:id,piece:piece.piece_name},inTurn);
+function moveElement(piece, id, castle) {
+  const pawnIsPromoted = checkForPawnPromotion(piece, id);
+
+  if (piece.piece_name.includes("KING") || piece.piece_name.includes("ROOK")) {
+    piece.move = true;
+
+    if (
+      piece.piece_name.includes("KING") &&
+      piece.piece_name.includes("BLACK")
+    ) {
+      if (id === "c8" || id === "g8") {
+        let rook = keySquareMapper[id === "c8" ? "a8" : "h8"];
+        moveElement(rook.piece, id === "c8" ? "d8" : "f8", true);
+      }
+    }
+
+    if (
+      piece.piece_name.includes("KING") &&
+      piece.piece_name.includes("WHITE")
+    ) {
+      if (id === "c1" || id === "g1") {
+        let rook = keySquareMapper[id === "c1" ? "a1" : "h1"];
+        moveElement(rook.piece, id === "c1" ? "d1" : "f1", true);
+      }
+    }
+  }
+
   const flatData = globalState.flat();
-  // console.log(piece);
   flatData.forEach((el) => {
     if (el.id == piece.current_position) {
       delete el.piece;
@@ -124,16 +183,26 @@ function moveElement(piece, id) {
       el.piece = piece;
     }
   });
-
   clearhighlight();
-  const previouspiece = document.getElementById(piece.current_position);
-  previouspiece.classList.remove("highlightYellow");
-  const curentpiece = document.getElementById(id);
-  curentpiece.innerHTML += previouspiece.querySelector('img').outerHTML;
-  previouspiece.innerText = "";
+  const previousPiece = document.getElementById(piece.current_position);
+  piece.current_position = null;
+  previousPiece?.classList?.remove("highlightYellow");
+  const currentPiece = document.getElementById(id);
+  currentPiece.innerHTML = previousPiece?.innerHTML;
+  if (previousPiece) previousPiece.innerHTML = "";
   piece.current_position = id;
+  if (pawnIsPromoted) {
+    pawnPromotion(inTurn, callbackPawnPromotion, id);
+  }
   checkForCheck();
-  // changeTurn();
+  // if(whoInCheck)
+  // {
+  // }
+  // new HypotheticalBoard(globalState);
+  if (!castle) {
+    changeTurn();
+  }
+  // globalStateRender();
 }
 // current selfhighlighted square state
 let selfHighlightState = null;
